@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from PyPDF2 import PdfReader
 import docx
 from langchain.text_splitter import CharacterTextSplitter
@@ -17,7 +18,8 @@ openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
 if not openai_api_key or not openai_api_key.startswith("sk-"):
     st.error("Please enter a valid OpenAI API key that starts with 'sk-'")
     st.stop()  # stops the app here if invalid key
-
+os.environ["OPENAI_API_KEY"] = openai_api_key
+embeddings = OpenAIEmbeddings()  # no need to pass api key here no
 uploaded_files = st.file_uploader(
     "Upload PDF, DOCX, or TXT files",
     type=['pdf', 'docx', 'txt'],
