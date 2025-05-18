@@ -6,21 +6,21 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import RetrievalQA
 
-# Set up page
 st.set_page_config(page_title="📚 Chat with Your Documents")
 st.title("📚 Chat with Your Documents - RAG App")
 
-# Load API Key securely from Streamlit Secrets
-openai_api_key = st.secrets["OPENAI_API_KEY"]
+# OpenAI API Key input
+openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
 
-# Upload documents
-uploaded_files = st.file_uploader(
-    "Upload PDF, DOCX, or TXT files",
-    type=["pdf", "docx", "txt"],
-    accept_multiple_files=True
-)
+# Validate API key
+if not openai_api_key or not openai_api_key.startswith("sk-"):
+    st.error("Please enter a valid OpenAI API Key.")
+    st.stop()
 
-@st.cache_data(show_spinner=False)
+# Upload files
+uploaded_files = st.file_uploader("Upload PDF, DOCX, or TXT files", type=['pdf', 'docx', 'txt'], accept_multiple_files=True)
+
+@st.cache_data
 def load_document(file):
     text = ""
     if file.type == "application/pdf":
@@ -37,6 +37,7 @@ def load_document(file):
         text = file.read().decode("utf-8")
     return text
 
+# Process uploaded files
 if uploaded_files:
     raw_text = ""
     for file in uploaded_files:
@@ -46,26 +47,19 @@ if uploaded_files:
     text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200)
     chunks = text_splitter.split_text(raw_text)
 
-    # Create embeddings and vectorstore
-    embeddings = OpenAIEmbeddings(api_key=openai_api_key)
+    # Embeddings and vectorstore
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     vectorstore = Chroma.from_texts(chunks, embedding=embeddings)
-
-    # Set up QA chain
     retriever = vectorstore.as_retriever()
-    qa_chain = RetrievalQA.from_chain_type(
-        llm=ChatOpenAI(api_key=openai_api_key),
-        retriever=retriever
-    )
+    qa_chain = RetrievalQA.from_chain_type(llm=ChatOpenAI(openai_api_key=openai_api_key), retriever=retriever)
 
-    st.success("✅ Documents processed. Ask your question below!")
-
-    # User input
-    query = st.text_input("Ask something about your documents:")
+    st.success("✅ Documents processed. Ask your question below.")
+    query = st.text_input("Ask a question about your documents:")
 
     if query:
-        with st.spinner("Thinking..."):
-            answer = qa_chain.run(query)
-            st.markdown(f"**Answer:** {answer}")
+        with st.spinner("Searching..."):
+            result = qa_chain.run(query)
+            st.markdown(f"**Answer:** {result}")
 else:
-    st.info("Upload at least one document to get started.")
+    st.info("Please upload at least one document.")
 
