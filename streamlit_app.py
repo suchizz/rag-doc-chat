@@ -3,12 +3,11 @@ from PyPDF2 import PdfReader
 import docx
 import os
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import Chroma
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
 from langchain.chat_models import ChatOpenAI
 
-# OpenAI API key setup
 st.set_page_config(page_title="RAG Chat with Docs")
 st.title("📚 Chat with Your Documents - RAG App")
 openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
@@ -37,13 +36,13 @@ if uploaded_files and openai_api_key:
     for file in uploaded_files:
         raw_text += load_document(file)
 
-    # Split documents into chunks
+    # Text splitting
     text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200)
     chunks = text_splitter.split_text(raw_text)
 
-    # Vectorstore and retrieval setup
+    # Vector store using Chroma (better for Streamlit Cloud)
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-    vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
+    vectorstore = Chroma.from_texts(chunks, embedding=embeddings)
     retriever = vectorstore.as_retriever()
     qa_chain = RetrievalQA.from_chain_type(llm=ChatOpenAI(openai_api_key=openai_api_key), retriever=retriever)
 
@@ -56,3 +55,4 @@ if uploaded_files and openai_api_key:
             st.markdown(f"**Answer:** {result}")
 else:
     st.info("Please upload documents and provide your OpenAI API key to continue.")
+
