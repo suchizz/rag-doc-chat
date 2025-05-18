@@ -13,12 +13,10 @@ st.title("📚 Chat with Your Documents - RAG App")
 # Input for OpenAI API Key
 openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
 
-# Validate API key
 if not openai_api_key or not openai_api_key.startswith("sk-"):
     st.error("Please enter a valid OpenAI API Key.")
     st.stop()
 
-# File uploader for PDF, DOCX, TXT
 uploaded_files = st.file_uploader(
     "Upload PDF, DOCX, or TXT files",
     type=['pdf', 'docx', 'txt'],
@@ -27,7 +25,6 @@ uploaded_files = st.file_uploader(
 
 @st.cache_data(show_spinner=False)
 def load_document(file):
-    """Extract text from uploaded documents based on type."""
     text = ""
     if file.type == "application/pdf":
         try:
@@ -64,20 +61,15 @@ if uploaded_files:
             st.error("Failed to extract text from the uploaded documents.")
             st.stop()
 
-        # Split text into chunks with some overlap for context preservation
         text_splitter = CharacterTextSplitter(separator="\n", chunk_size=1000, chunk_overlap=200)
         chunks = text_splitter.split_text(raw_text)
 
-        # Create embeddings with OpenAI
         embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
 
-        # Create FAISS vectorstore from text chunks
         vectorstore = FAISS.from_texts(chunks, embeddings)
 
-        # Create retriever object
         retriever = vectorstore.as_retriever()
 
-        # Create the RetrievalQA chain with ChatOpenAI as LLM
         qa_chain = RetrievalQA.from_chain_type(
             llm=ChatOpenAI(openai_api_key=openai_api_key, temperature=0),
             retriever=retriever,
@@ -96,7 +88,6 @@ if uploaded_files:
 else:
     st.info("Please upload at least one document (PDF, DOCX, or TXT) to start chatting.")
 
-# Footer note
 st.markdown(
     """
     ---
