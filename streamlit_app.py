@@ -1,79 +1,60 @@
 import streamlit as st
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.chains.question_answering import load_qa_chain
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain_community.vectorstores import FAISS as CommunityFAISS
+from langchain_community.vectorstores import FAISS
+import tempfile
 import os
-import time
 
-# ===== Embedding selection =====
-USE_OPENAI = True
+# Set your OpenAI API key
+os.environ["OPENAI_API_KEY"] = "your-openai-api-key"  # <-- Replace this
 
-if USE_OPENAI:
-    from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-    import openai
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-    embeddings = OpenAIEmbeddings()
-    llm = ChatOpenAI()
-else:
-    from langchain.embeddings import HuggingFaceEmbeddings
-    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    from langchain.chat_models import ChatOpenAI  # Placeholder if using HF
+st.set_page_config(page_title="RAG PDF Chatbot", layout="wide")
+st.title("📄 RAG PDF Chatbot")
+st.markdown("Upload a PDF and chat with it using LangChain + OpenAI")
 
-# ===== Document Upload =====
-st.title("📄 RAG Doc Chat App")
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-if uploaded_file:
-    import tempfile
+if uploaded_file is not None:
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+            tmp_file.write(uploaded_file.read())
+            tmp_file_path = tmp_file.name
 
-# Save uploaded PDF to a temporary file
-with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
-    tmp_file.write(uploaded_file.read())
-    tmp_file_path = tmp_file.name
+        # Load and split the document
+        loader = PyPDFLoader(tmp_file_path)
+        docs = loader.load()
 
-loader = PyPDFLoader(tmp_file_path)
+        text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        chunks = text_splitter.split_documents(docs)
 
-    docs = loader.load()
+        # Generate embeddings
+        embeddings = OpenAIEmbeddings()
+        vectorstore = FAISS.from_documents(chunks, embeddings)
 
-    # ===== Text Splitting =====
-    text_splitter = CharacterTextSplitter(chunk_size=300, chunk_overlap=30)
-    chunks = text_splitter.split_documents(docs)
+        # Build retriever
+        retriever = vectorstore.as_retriever()
 
-    # ===== FAISS Handling =====
-    INDEX_PATH = "faiss_index"
+        # Setup QA chain
+        qa_chain = RetrievalQA.from_chain_type(
+            llm=ChatOpenAI(model_name="gpt-3.5-turbo"),
+            chain_type="stuff",
+            retriever=retriever,
+            return_source_documents=True
+        )
 
-    if os.path.exists(INDEX_PATH):
-        st.info("📁 Loading cached FAISS index...")
-        vectorstore = CommunityFAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-    else:
-        st.info("📚 Creating vectorstore (can take time)...")
+        # User query input
+        query = st.text_input("Ask a question about the PDF")
 
-        # Retry mechanism for embedding API rate limits
-        texts = [chunk.page_content for chunk in chunks]
-        embedded_chunks = []
-        for text in texts:
-            try:
-                embedded_chunks.append(text)
-                time.sleep(1)
-            except Exception as e:
-                st.error(f"Error embedding: {e}")
-                time.sleep(5)
+        if query:
+            with st.spinner("Thinking..."):
+                result = qa_chain({"query": query})
+                st.write("### Answer")
+                st.write(result["result"])
 
-        vectorstore = CommunityFAISS.from_texts(texts=embedded_chunks, embedding=embeddings)
-        vectorstore.save_local(INDEX_PATH)
-
-    retriever = vectorstore.as_retriever()
-    chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
-
-    query = st.text_input("Ask a question based on the PDF:")
-
-    if query:
-        result = chain.run(query)
-        st.write("### Answer:")
-        st.write(result)
+    except Exception as e:
+        st.error(f"Error: {e}")
 
 
 
