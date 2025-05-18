@@ -1,8 +1,10 @@
 streamlit
 langchain
-langchain-community
-langchain-openai
 openai
+chromadb
 faiss-cpu
+PyPDF2
 tiktoken
-python-dotenv
+langchain-openai
+langchain-community
+
