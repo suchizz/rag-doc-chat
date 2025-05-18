@@ -1,6 +1,8 @@
-streamlit>=1.20.0
-PyPDF2>=3.0.0
-python-docx>=0.8.11
-langchain>=0.0.185
-openai>=0.27.0
-faiss-cpu>=1.7.4
+streamlit
+langchain
+langchain-community
+langchain-openai
+chromadb
+openai
+PyPDF2
+python-docx
