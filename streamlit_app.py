@@ -16,7 +16,7 @@ if openai_api_key:
         text = uploaded_file.read().decode("utf-8")
 
         # Split text
-        text_splitter = CharacterTextSplitter(chunk_size=800, chunk_overlap=200)
+        text_splitter = CharacterTextSplitter(chunk_size=400, chunk_overlap=50)
         chunks = text_splitter.split_text(text)
 
         # Embed
