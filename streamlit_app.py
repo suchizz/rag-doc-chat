@@ -1,37 +1,72 @@
 import streamlit as st
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import CharacterTextSplitter
+from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
-from langchain.docstore.document import Document
+from langchain.chains import RetrievalQA
+from langchain_community.vectorstores import FAISS as CommunityFAISS
+import os
+import time
 
-openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
+# ===== Embedding selection =====
+USE_OPENAI = True
 
-if openai_api_key:
-    st.title("🧠 Simple RAG Chatbot")
+if USE_OPENAI:
+    from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+    import openai
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    embeddings = OpenAIEmbeddings()
+    llm = ChatOpenAI()
+else:
+    from langchain.embeddings import HuggingFaceEmbeddings
+    embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    from langchain.chat_models import ChatOpenAI  # Placeholder if using HF
 
-    uploaded_file = st.file_uploader("Upload a text file", type="txt")
+# ===== Document Upload =====
+st.title("📄 RAG Doc Chat App")
+uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
-    if uploaded_file:
-        text = uploaded_file.read().decode("utf-8")
+if uploaded_file:
+    loader = PyPDFLoader(uploaded_file.name)
+    docs = loader.load()
 
-        # Split text
-        text_splitter = CharacterTextSplitter(chunk_size=400, chunk_overlap=50)
-        chunks = text_splitter.split_text(text)
+    # ===== Text Splitting =====
+    text_splitter = CharacterTextSplitter(chunk_size=300, chunk_overlap=30)
+    chunks = text_splitter.split_documents(docs)
 
-        # Embed
-        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-        vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
+    # ===== FAISS Handling =====
+    INDEX_PATH = "faiss_index"
 
-        # Get user query
-        query = st.text_input("Ask something about the document")
+    if os.path.exists(INDEX_PATH):
+        st.info("📁 Loading cached FAISS index...")
+        vectorstore = CommunityFAISS.load_local(INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
+    else:
+        st.info("📚 Creating vectorstore (can take time)...")
 
-        if query:
-            docs = vectorstore.similarity_search(query)
-            llm = ChatOpenAI(openai_api_key=openai_api_key)
-            chain = load_qa_chain(llm, chain_type="stuff")
-            answer = chain.run(input_documents=docs, question=query)
-            st.markdown(f"### 🤖 Answer:\n{answer}")
+        # Retry mechanism for embedding API rate limits
+        texts = [chunk.page_content for chunk in chunks]
+        embedded_chunks = []
+        for text in texts:
+            try:
+                embedded_chunks.append(text)
+                time.sleep(1)
+            except Exception as e:
+                st.error(f"Error embedding: {e}")
+                time.sleep(5)
+
+        vectorstore = CommunityFAISS.from_texts(texts=embedded_chunks, embedding=embeddings)
+        vectorstore.save_local(INDEX_PATH)
+
+    retriever = vectorstore.as_retriever()
+    chain = RetrievalQA.from_chain_type(llm=llm, retriever=retriever)
+
+    query = st.text_input("Ask a question based on the PDF:")
+
+    if query:
+        result = chain.run(query)
+        st.write("### Answer:")
+        st.write(result)
+
 
 
 
