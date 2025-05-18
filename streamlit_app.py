@@ -6,6 +6,10 @@ from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import RetrievalQA
 
+openai_api_key = st.secrets["OPENAI_API_KEY"]
+embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+llm = ChatOpenAI(openai_api_key=openai_api_key)
+
 st.set_page_config(page_title="📚 Chat with Your Documents")
 st.title("📚 Chat with Your Documents - RAG App")
 
