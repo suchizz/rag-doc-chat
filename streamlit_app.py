@@ -8,7 +8,8 @@ import tempfile
 import os
 
 # Set your OpenAI API key
-os.environ["OPENAI_API_KEY"] = "your-openai-api-key"  # <-- Replace this
+os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
+  # <-- Replace this
 
 st.set_page_config(page_title="RAG PDF Chatbot", layout="wide")
 st.title("📄 RAG PDF Chatbot")
