@@ -1,4 +1,19 @@
 import streamlit as st
+from langchain.embeddings import OpenAIEmbeddings
+
+# 1. Get OpenAI API key input from user
+openai_api_key = st.text_input("Enter your OpenAI API Key:", type="password")
+
+# 2. Validate the API key before proceeding
+if not openai_api_key or not openai_api_key.startswith("sk-"):
+    st.error("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")
+    st.stop()  # stops the app here if invalid key
+
+# 3. Create embeddings using the valid API key
+embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+
+# ... rest of your app code like uploading files, creating vectorstore, etc.
+import streamlit as st
 from PyPDF2 import PdfReader
 import docx
 import os
