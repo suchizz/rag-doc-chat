@@ -4,7 +4,9 @@ openai
 chromadb
 faiss-cpu
 PyPDF2
+pypdf
 tiktoken
 langchain-openai
 langchain-community
+
 
