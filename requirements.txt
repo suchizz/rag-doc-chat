@@ -3,4 +3,4 @@ PyPDF2
 python-docx
 openai
 langchain
-faiss-cpu
+chromadb
