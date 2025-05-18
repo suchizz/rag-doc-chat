@@ -27,7 +27,15 @@ st.title("📄 RAG Doc Chat App")
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
 
 if uploaded_file:
-    loader = PyPDFLoader(uploaded_file.name)
+    import tempfile
+
+# Save uploaded PDF to a temporary file
+with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+    tmp_file.write(uploaded_file.read())
+    tmp_file_path = tmp_file.name
+
+loader = PyPDFLoader(tmp_file_path)
+
     docs = loader.load()
 
     # ===== Text Splitting =====
